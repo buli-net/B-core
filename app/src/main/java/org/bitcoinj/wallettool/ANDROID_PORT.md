@@ -1,1 +1,0 @@
-WalletTool.java is the supplied bitcoinj wallet-tool source adapted only to remove process-terminating System.exit calls so it can run inside Android. Its command/action logic is otherwise retained and is invoked through picocli.
