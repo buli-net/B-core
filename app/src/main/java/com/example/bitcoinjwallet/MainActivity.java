@@ -47,13 +47,17 @@ public class MainActivity extends Activity {
     private TextView balance;
     private TextView address;
     private ProgressBar progress;
-    private BitcoinNetwork selectedNetwork = BitcoinNetwork.TESTNET;
+    private BitcoinNetwork selectedNetwork = BitcoinNetwork.MAINNET;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         manager = new WalletManager(this);
-        toolRunner = new ToolRunner(this);
+        toolRunner = new ToolRunner(this, manager);
+        String saved = getSharedPreferences("wallet", MODE_PRIVATE)
+                .getString("network", BitcoinNetwork.MAINNET.name());
+        try { selectedNetwork = BitcoinNetwork.valueOf(saved); }
+        catch (IllegalArgumentException ignored) { selectedNetwork = BitcoinNetwork.MAINNET; }
         showNetworkChooser();
     }
 
@@ -64,9 +68,10 @@ public class MainActivity extends Activity {
         box.addView(text("Select the Bitcoin network used by this wallet.", 16));
 
         Spinner spinner = new Spinner(this);
+        String[] networks = {"TESTNET", "MAINNET", "SIGNET", "REGTEST"};
         spinner.setAdapter(new ArrayAdapter<>(
-                this, android.R.layout.simple_spinner_dropdown_item,
-                new String[]{"TESTNET", "MAINNET", "SIGNET", "REGTEST"}));
+                this, android.R.layout.simple_spinner_dropdown_item, networks));
+        spinner.setSelection(Arrays.asList(networks).indexOf(selectedNetwork.name()));
         box.addView(spinner);
 
         Button start = button("Open wallet");
@@ -74,6 +79,8 @@ public class MainActivity extends Activity {
         start.setOnClickListener(v -> {
             String n = spinner.getSelectedItem().toString();
             selectedNetwork = BitcoinNetwork.valueOf(n);
+            getSharedPreferences("wallet", MODE_PRIVATE).edit()
+                    .putString("network", selectedNetwork.name()).apply();
             showWalletScreen();
             manager.start(selectedNetwork, walletListener());
         });
@@ -88,8 +95,9 @@ public class MainActivity extends Activity {
                 status.setText("Wallet ready. Synchronisation continues in background.");
             }
             @Override public void onProgress(double pct) {
-                progress.setProgress((int)Math.round(pct * 100));
-                status.setText("Synchronising: " + Math.round(pct * 100) + "%");
+                int percent = (int) Math.round(Math.max(0.0, Math.min(100.0, pct)));
+                progress.setProgress(percent);
+                status.setText("Synchronising: " + percent + "%");
             }
             @Override public void onError(Throwable error) {
                 status.setText("Error: " + message(error));
@@ -355,7 +363,7 @@ public class MainActivity extends Activity {
     private void showTool() {
         LinearLayout box = column();
         box.addView(text("BitcoinJ Wallet Tool", 24));
-        box.addView(text("This screen exposes the actions and options of the supplied wallet-tool command line program.", 14));
+        box.addView(text("Runs wallet-tool against the wallet for the selected network.", 14));
 
         Spinner action = new Spinner(this);
         String[] actions = {
@@ -448,22 +456,35 @@ public class MainActivity extends Activity {
             if (ignoreExt.isChecked()) a.add("--ignore-mandatory-extensions");
             if (debug.isChecked()) a.add("--debuglog");
 
+            BitcoinNetwork toolNetwork = BitcoinNetwork.valueOf(net.getSelectedItem().toString());
+            boolean restartWallet = manager.wallet() != null && manager.network() == toolNetwork;
             run.setEnabled(false);
-            result.setText("Running...");
-            toolRunner.run(a, new ToolRunner.Callback() {
-                @Override public void onFinished(int exitCode, String output) {
-                    runOnUiThread(() -> {
-                        run.setEnabled(true);
-                        result.setText("Exit code: " + exitCode + "\n\n" + output);
-                    });
-                }
-                @Override public void onFailed(Throwable error) {
-                    runOnUiThread(() -> {
-                        run.setEnabled(true);
-                        result.setText("Failed:\n" + message(error));
-                    });
-                }
-            });
+            result.setText("Starting...");
+            new Thread(() -> {
+                if (restartWallet) manager.stop();
+                toolRunner.run(a, toolNetwork, new ToolRunner.Callback() {
+                    @Override public void onStarted() {
+                        runOnUiThread(() -> result.setText("Running...\nWallet: " + manager.walletFile(toolNetwork).getAbsolutePath()));
+                    }
+                    @Override public void onFinished(int exitCode, String output) {
+                        runOnUiThread(() -> {
+                            run.setEnabled(true);
+                            result.setText("Exit code: " + exitCode + "\n\n" + output);
+                            if (restartWallet) {
+                                status = status == null ? text("", 14) : status;
+                                manager.start(toolNetwork, walletListener());
+                            }
+                        });
+                    }
+                    @Override public void onFailed(Throwable error) {
+                        runOnUiThread(() -> {
+                            run.setEnabled(true);
+                            result.setText("Failed:\n" + message(error));
+                            if (restartWallet) manager.start(toolNetwork, walletListener());
+                        });
+                    }
+                });
+            }, "wallet-tool").start();
         });
 
         setContentView(paddedScroll(box));

@@ -15,6 +15,8 @@ import org.bitcoinj.wallet.KeyChainGroupStructure;
 import org.bitcoinj.wallet.Wallet;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class WalletManager {
@@ -27,7 +29,59 @@ public final class WalletManager {
     private final Context context;
     private final Handler main = new Handler(Looper.getMainLooper());
     private WalletAppKit kit;
-    private BitcoinNetwork network = BitcoinNetwork.TESTNET;
+    private BitcoinNetwork network = BitcoinNetwork.MAINNET;
+
+    private File walletDir(BitcoinNetwork n) {
+        return new File(context.getFilesDir(), "bitcoinj-" + n.name().toLowerCase());
+    }
+
+    private String walletPrefix(BitcoinNetwork n) {
+        return "bitcoinj-wallet-" + n.name().toLowerCase();
+    }
+
+    private void prepareWalletStorage(BitcoinNetwork n) throws Exception {
+        File dir = walletDir(n);
+        if (!dir.exists() && !dir.mkdirs())
+            throw new IllegalStateException("Cannot create wallet directory: " + dir);
+
+        File target = new File(dir, walletPrefix(n) + ".wallet");
+        if (target.exists()) return;
+
+        // Migrate the old single-wallet layout only when its network matches.
+        File legacyDir = new File(context.getFilesDir(), "bitcoinj");
+        File legacyWallet = new File(legacyDir, "bitcoinj-wallet.wallet");
+        if (!legacyWallet.exists()) return;
+
+        Wallet old = Wallet.loadFromFile(legacyWallet);
+        if (old.network() != n) return;
+
+        Files.move(legacyWallet.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        File legacyChain = new File(legacyDir, "bitcoinj-wallet.spvchain");
+        if (legacyChain.exists()) {
+            File targetChain = new File(dir, walletPrefix(n) + ".spvchain");
+            Files.move(legacyChain.toPath(), targetChain.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    public synchronized File walletFile() {
+        return walletFile(network);
+    }
+
+    public synchronized File walletFile(BitcoinNetwork n) {
+        return new File(walletDir(n), walletPrefix(n) + ".wallet");
+    }
+
+    public synchronized File chainFile() {
+        return chainFile(network);
+    }
+
+    public synchronized File chainFile(BitcoinNetwork n) {
+        return new File(walletDir(n), walletPrefix(n) + ".spvchain");
+    }
+
+    public synchronized void ensureStorage(BitcoinNetwork n) throws Exception {
+        prepareWalletStorage(n);
+    }
     private final AtomicBoolean starting = new AtomicBoolean();
 
     public WalletManager(Context context) {
@@ -41,10 +95,8 @@ public final class WalletManager {
 
         new Thread(() -> {
             try {
-                File dir = new File(context.getFilesDir(), "bitcoinj");
-                if (!dir.exists() && !dir.mkdirs()) {
-                    throw new IllegalStateException("Cannot create wallet directory");
-                }
+                prepareWalletStorage(network);
+                File dir = walletDir(network);
 
                 org.bitcoinj.core.Context.propagate(new org.bitcoinj.core.Context());
                 kit = new WalletAppKit(
@@ -52,7 +104,7 @@ public final class WalletManager {
                         ScriptType.P2WPKH,
                         KeyChainGroupStructure.BIP43,
                         dir,
-                        "bitcoinj-wallet"
+                        walletPrefix(network)
                 ) {
                     @Override
                     protected void onSetupCompleted() {
@@ -72,7 +124,7 @@ public final class WalletManager {
 
                             @Override
                             protected void doneDownload() {
-                                main.post(() -> listener.onProgress(1.0));
+                                main.post(() -> listener.onProgress(100.0));
                             }
                         });
 
@@ -94,14 +146,15 @@ public final class WalletManager {
     private synchronized void startWithSeed(DeterministicSeed seed, Listener listener) {
         new Thread(() -> {
             try {
-                File dir = new File(context.getFilesDir(), "bitcoinj");
+                prepareWalletStorage(network);
+                File dir = walletDir(network);
                 org.bitcoinj.core.Context.propagate(new org.bitcoinj.core.Context());
                 kit = new WalletAppKit(
                         network,
                         ScriptType.P2WPKH,
                         KeyChainGroupStructure.BIP43,
                         dir,
-                        "bitcoinj-wallet"
+                        walletPrefix(network)
                 ) {
                     @Override
                     protected void onSetupCompleted() {
@@ -119,7 +172,7 @@ public final class WalletManager {
                             }
                             @Override
                             protected void doneDownload() {
-                                main.post(() -> listener.onProgress(1.0));
+                                main.post(() -> listener.onProgress(100.0));
                             }
                         });
                 kit.startAsync();
@@ -142,7 +195,7 @@ public final class WalletManager {
     }
 
     public synchronized File dataDir() {
-        return new File(context.getFilesDir(), "bitcoinj");
+        return walletDir(network);
     }
 
     public synchronized void stop() {

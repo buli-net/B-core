@@ -2,6 +2,7 @@ package com.example.bitcoinjwallet;
 
 import android.content.Context;
 
+import org.bitcoinj.base.BitcoinNetwork;
 import org.bitcoinj.wallettool.WalletTool;
 
 import java.io.ByteArrayOutputStream;
@@ -17,19 +18,23 @@ import picocli.CommandLine;
 
 public final class ToolRunner {
     public interface Callback {
+        void onStarted();
         void onFinished(int exitCode, String output);
         void onFailed(Throwable error);
     }
 
     private final Context context;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final WalletManager manager;
 
-    public ToolRunner(Context context) {
+    public ToolRunner(Context context, WalletManager manager) {
         this.context = context.getApplicationContext();
+        this.manager = manager;
     }
 
-    public void run(List<String> userArgs, Callback callback) {
+    public void run(List<String> userArgs, BitcoinNetwork network, Callback callback) {
         executor.execute(() -> {
+            mainThreadCallback(callback::onStarted);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             ByteArrayOutputStream err = new ByteArrayOutputStream();
             PrintStream oldOut = System.out;
@@ -38,35 +43,46 @@ public final class ToolRunner {
                 System.setOut(new PrintStream(out, true, StandardCharsets.UTF_8));
                 System.setErr(new PrintStream(err, true, StandardCharsets.UTF_8));
 
+                manager.ensureStorage(network);
                 List<String> args = new ArrayList<>(userArgs);
-                String walletPath = new File(
-                        context.getFilesDir(), "bitcoinj-wallet.wallet").getAbsolutePath();
-                String chainPath = new File(
-                        context.getFilesDir(), "bitcoinj-wallet.spvchain").getAbsolutePath();
-
-                boolean hasWallet = false;
-                for (String a : args) {
-                    if (a.startsWith("--wallet=")) hasWallet = true;
+                File walletFile = manager.walletFile(network);
+                File chainFile = manager.chainFile(network);
+                if (walletFile.getParentFile() != null && !walletFile.getParentFile().exists()
+                        && !walletFile.getParentFile().mkdirs()) {
+                    throw new IllegalStateException("Cannot create wallet tool directory: " + walletFile.getParentFile());
                 }
-                if (!hasWallet) args.add("--wallet=" + walletPath);
-
-                boolean hasChain = false;
-                for (String a : args) {
-                    if (a.startsWith("--chain=")) hasChain = true;
-                }
-                if (!hasChain) args.add("--chain=" + chainPath);
+                addIfMissing(args, "--wallet=", walletFile.getAbsolutePath());
+                addIfMissing(args, "--chain=", chainFile.getAbsolutePath());
 
                 int code = new CommandLine(new WalletTool()).execute(args.toArray(new String[0]));
-                String combined = out.toString(StandardCharsets.UTF_8)
-                        + err.toString(StandardCharsets.UTF_8);
-                callback.onFinished(code, combined);
+                String stdout = out.toString(StandardCharsets.UTF_8);
+                String stderr = err.toString(StandardCharsets.UTF_8);
+                StringBuilder combined = new StringBuilder();
+                if (!stdout.isEmpty()) combined.append(stdout);
+                if (!stderr.isEmpty()) {
+                    if (combined.length() > 0 && combined.charAt(combined.length() - 1) != '\n') combined.append('\n');
+                    combined.append(stderr);
+                }
+                mainThreadCallback(() -> callback.onFinished(code, combined.toString()));
             } catch (Throwable t) {
-                callback.onFailed(t);
+                mainThreadCallback(() -> callback.onFailed(t));
             } finally {
                 System.setOut(oldOut);
                 System.setErr(oldErr);
             }
         });
+    }
+
+    private static void addIfMissing(List<String> args, String prefix, String value) {
+        for (String arg : args) {
+            if (arg.startsWith(prefix)) return;
+        }
+        args.add(prefix + value);
+    }
+
+    private void mainThreadCallback(Runnable action) {
+        android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+        handler.post(action);
     }
 
     public void shutdown() {

@@ -46,8 +46,8 @@ android {
 dependencies {
     implementation 'org.bitcoinj:bitcoinj-core:0.17.1'
     implementation 'info.picocli:picocli:4.7.6'
-    implementation 'org.jspecify:jspecify:1.0.0'
     implementation 'uk.uuid.slf4j:slf4j-android:2.0.17-0'
+    implementation 'org.jspecify:jspecify:1.0.0'
     implementation 'com.google.zxing:core:3.5.3'
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
 }
