@@ -11,19 +11,37 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Unzip wallet.zip
+      - name: Extract wallet.zip
+        shell: bash
         run: |
-          set -e
+          set -euo pipefail
 
-          test -f wallet.zip
-          unzip -o wallet.zip -d .
-          rm -f wallet.zip
+          if [ ! -f "wallet.zip" ]; then
+            echo "ERROR: wallet.zip not found."
+            exit 1
+          fi
+
+          echo "Extracting wallet.zip..."
+
+          unzip -o "wallet.zip" -d .
+
+          rm -f "wallet.zip"
+
+          echo "Extraction completed."
+          echo
+          echo "Repository contents:"
+          find . -maxdepth 3 -type f \
+            ! -path "./.git/*" \
+            | sort
 
       - name: Commit extracted source
+        shell: bash
         run: |
+          set -euo pipefail
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
