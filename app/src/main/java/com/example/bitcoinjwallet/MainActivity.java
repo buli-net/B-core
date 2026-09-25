@@ -270,8 +270,7 @@ public class MainActivity extends Activity {
                         return;
                     }
                     try {
-                        KeyCrypterScrypt scrypt = new KeyCrypterScrypt(
-                                new KeyCrypterScrypt());
+                        KeyCrypterScrypt scrypt = new KeyCrypterScrypt();
                         AesKey key = scrypt.deriveKey(p1);
                         w.encrypt(scrypt, key);
                         encrypt.setText("Decrypt wallet");
