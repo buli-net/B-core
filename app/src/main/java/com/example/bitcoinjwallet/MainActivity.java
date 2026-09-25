@@ -146,7 +146,17 @@ public class MainActivity extends Activity {
         }));
 
         setContentView(paddedScroll(root));
-        if (manager.wallet() != null) refreshWallet(manager.wallet());
+        Wallet current = manager.wallet();
+        if (current != null) {
+            refreshWallet(current);
+            if (manager.isSyncing()) {
+                status.setText(getString(R.string.synchronising_percent, manager.progressPercent()));
+                progress.setProgress(manager.progressPercent());
+            } else {
+                status.setText(s(R.string.wallet_ready));
+                progress.setProgress(100);
+            }
+        }
     }
 
     private void restartWallet() {
@@ -165,22 +175,32 @@ public class MainActivity extends Activity {
     private void showReceive() {
         Wallet w = manager.wallet();
         if (w == null) { toast(s(R.string.wallet_not_ready)); return; }
-        String addr = w.currentReceiveAddress().toString();
-        LinearLayout box = page();
-        box.addView(title(s(R.string.receive_btc)));
-        box.addView(text(getString(R.string.network_value, selectedNetwork.name()), 14, textSecondaryColor()));
-        ImageView image = new ImageView(this);
-        image.setImageBitmap(qr(addr, 620));
-        image.setAdjustViewBounds(true);
-        image.setPadding(24, 24, 24, 24);
-        box.addView(image, new LinearLayout.LayoutParams(-1, 620));
-        TextView a = text(addr, 16, textPrimaryColor());
-        a.setTextIsSelectable(true);
-        a.setGravity(Gravity.CENTER);
-        box.addView(a);
-        box.addView(actionButton(s(R.string.copy_address), s(R.string.copy_to_clipboard), v -> copy(addr)));
-        box.addView(backButton());
-        setContentView(paddedScroll(box));
+        try {
+            String addr = w.currentReceiveAddress().toString();
+            LinearLayout box = page();
+            box.addView(title(s(R.string.receive_btc)));
+            box.addView(text(getString(R.string.network_value, selectedNetwork.name()), 14, textSecondaryColor()));
+
+            try {
+                ImageView image = new ImageView(this);
+                image.setImageBitmap(qr(addr, 620));
+                image.setAdjustViewBounds(true);
+                image.setPadding(24, 24, 24, 24);
+                box.addView(image, new LinearLayout.LayoutParams(-1, 620));
+            } catch (Throwable qrError) {
+                box.addView(text(s(R.string.qr_unavailable), 14, textSecondaryColor()));
+            }
+
+            TextView a = text(addr, 16, textPrimaryColor());
+            a.setTextIsSelectable(true);
+            a.setGravity(Gravity.CENTER);
+            box.addView(a);
+            box.addView(actionButton(s(R.string.copy_address), s(R.string.copy_to_clipboard), v -> copy(addr)));
+            box.addView(backButton());
+            setContentView(paddedScroll(box));
+        } catch (Throwable error) {
+            toastLong(message(error));
+        }
     }
 
     private void showSend() {

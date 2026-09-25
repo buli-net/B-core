@@ -30,6 +30,8 @@ public final class WalletManager {
     private final Handler main = new Handler(Looper.getMainLooper());
     private WalletAppKit kit;
     private BitcoinNetwork network = BitcoinNetwork.MAINNET;
+    private double lastProgress = 0.0;
+    private boolean syncing = false;
 
     private File walletDir(BitcoinNetwork n) {
         return new File(context.getFilesDir(), "bitcoinj-" + n.name().toLowerCase());
@@ -89,9 +91,25 @@ public final class WalletManager {
     }
 
     public synchronized void start(BitcoinNetwork network, Listener listener) {
-        if (starting.get() || kit != null) return;
+        if (starting.get()) return;
+        if (kit != null) {
+            this.network = network;
+            Wallet existing = kit.wallet();
+            if (existing != null) {
+                final double progress = lastProgress;
+                final boolean isSyncing = syncing;
+                main.post(() -> {
+                    listener.onWalletReady(existing);
+                    if (isSyncing) listener.onProgress(progress);
+                    else listener.onProgress(100.0);
+                });
+            }
+            return;
+        }
         starting.set(true);
         this.network = network;
+        lastProgress = 0.0;
+        syncing = true;
 
         new Thread(() -> {
             try {
@@ -119,11 +137,20 @@ public final class WalletManager {
                         .setDownloadListener(new DownloadProgressTracker() {
                             @Override
                             protected void progress(double pct, int blocksSoFar, java.time.Instant time) {
-                                main.post(() -> listener.onProgress(pct));
+                                final double value = Math.max(0.0, Math.min(100.0, pct));
+                                synchronized (WalletManager.this) {
+                                    lastProgress = value;
+                                    syncing = value < 100.0;
+                                }
+                                main.post(() -> listener.onProgress(value));
                             }
 
                             @Override
                             protected void doneDownload() {
+                                synchronized (WalletManager.this) {
+                                    lastProgress = 100.0;
+                                    syncing = false;
+                                }
                                 main.post(() -> listener.onProgress(100.0));
                             }
                         });
@@ -168,10 +195,19 @@ public final class WalletManager {
                         .setDownloadListener(new DownloadProgressTracker() {
                             @Override
                             protected void progress(double pct, int blocksSoFar, java.time.Instant time) {
-                                main.post(() -> listener.onProgress(pct));
+                                final double value = Math.max(0.0, Math.min(100.0, pct));
+                                synchronized (WalletManager.this) {
+                                    lastProgress = value;
+                                    syncing = value < 100.0;
+                                }
+                                main.post(() -> listener.onProgress(value));
                             }
                             @Override
                             protected void doneDownload() {
+                                synchronized (WalletManager.this) {
+                                    lastProgress = 100.0;
+                                    syncing = false;
+                                }
                                 main.post(() -> listener.onProgress(100.0));
                             }
                         });
@@ -198,7 +234,17 @@ public final class WalletManager {
         return walletDir(network);
     }
 
+    public synchronized boolean isSyncing() {
+        return syncing;
+    }
+
+    public synchronized int progressPercent() {
+        return (int) Math.round(Math.max(0.0, Math.min(100.0, lastProgress)));
+    }
+
     public synchronized void stop() {
+        lastProgress = 0.0;
+        syncing = false;
         if (kit != null) {
             try {
                 kit.stopAsync();

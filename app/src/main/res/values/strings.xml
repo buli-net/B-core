@@ -145,4 +145,5 @@ Amount
     <string name="copy">Copy</string>
     <string name="set_wallet_password">Set wallet password</string>
     <string name="all">ALL</string>
+    <string name="qr_unavailable">QR code unavailable for this address.</string>
 </resources>
