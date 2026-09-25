@@ -5,51 +5,25 @@ on:
 
 permissions:
   contents: write
-  workflows: write
 
 jobs:
   unzip:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Extract wallet.zip
-        shell: bash
+      - name: Unzip wallet.zip
         run: |
-          set -euo pipefail
+          set -e
 
-          echo "Checking wallet.zip..."
-
-          if [ ! -f "wallet.zip" ]; then
-            echo "ERROR: wallet.zip not found."
-            exit 1
-          fi
-
-          echo "Extracting wallet.zip..."
-
-          unzip -o "wallet.zip" -d .
-
-          echo "Removing wallet.zip..."
-
-          rm -f "wallet.zip"
-
-          echo "Extraction completed."
-
-          echo
-          echo "Extracted files:"
-          find . -maxdepth 5 -type f \
-            ! -path "./.git/*" \
-            | sort
+          test -f wallet.zip
+          unzip -o wallet.zip -d .
+          rm -f wallet.zip
 
       - name: Commit extracted source
-        shell: bash
         run: |
-          set -euo pipefail
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
@@ -61,5 +35,4 @@ jobs:
           fi
 
           git commit -m "Extract wallet source from wallet.zip"
-
-          git push origin HEAD:main
+          git push
