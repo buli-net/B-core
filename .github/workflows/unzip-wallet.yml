@@ -5,13 +5,14 @@ on:
 
 permissions:
   contents: write
+  workflows: write
 
 jobs:
   unzip:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Extract wallet.zip
@@ -19,23 +20,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ ! -f "wallet.zip" ]; then
-            echo "ERROR: wallet.zip not found."
-            exit 1
-          fi
+          test -f wallet.zip
 
-          echo "Extracting wallet.zip..."
-
-          unzip -o "wallet.zip" -d .
-
-          rm -f "wallet.zip"
-
-          echo "Extraction completed."
-          echo
-          echo "Repository contents:"
-          find . -maxdepth 3 -type f \
-            ! -path "./.git/*" \
-            | sort
+          unzip -o wallet.zip -d .
+          rm -f wallet.zip
 
       - name: Commit extracted source
         shell: bash
