@@ -12,18 +12,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Extract wallet.zip
         shell: bash
         run: |
           set -euo pipefail
 
-          test -f wallet.zip
+          echo "Checking wallet.zip..."
 
-          unzip -o wallet.zip -d .
-          rm -f wallet.zip
+          if [ ! -f "wallet.zip" ]; then
+            echo "ERROR: wallet.zip not found."
+            exit 1
+          fi
+
+          echo "Extracting wallet.zip..."
+
+          unzip -o "wallet.zip" -d .
+
+          echo "Removing wallet.zip..."
+
+          rm -f "wallet.zip"
+
+          echo "Extraction completed."
+
+          echo
+          echo "Extracted files:"
+          find . -maxdepth 5 -type f \
+            ! -path "./.git/*" \
+            | sort
 
       - name: Commit extracted source
         shell: bash
@@ -41,4 +61,5 @@ jobs:
           fi
 
           git commit -m "Extract wallet source from wallet.zip"
-          git push
+
+          git push origin HEAD:main
