@@ -72,19 +72,19 @@ public class MainActivity extends Activity {
             @Override public void onWalletReady(Wallet wallet) {
                 runOnUiThread(() -> {
                     refreshWallet(wallet);
-                    if (status != null) status.setText("Wallet ready");
+                    if (status != null) status.setText(s(R.string.wallet_ready));
                 });
             }
             @Override public void onProgress(double pct) {
                 int percent = (int) Math.round(Math.max(0.0, Math.min(100.0, pct)));
                 runOnUiThread(() -> {
                     if (progress != null) progress.setProgress(percent);
-                    if (status != null) status.setText("Synchronising  " + percent + "%");
+                    if (status != null) status.setText(getString(R.string.synchronising_percent, percent));
                 });
             }
             @Override public void onError(Throwable error) {
                 runOnUiThread(() -> {
-                    if (status != null) status.setText("Sync error: " + message(error));
+                    if (status != null) status.setText(getString(R.string.sync_error, message(error)));
                 });
             }
         };
@@ -93,11 +93,11 @@ public class MainActivity extends Activity {
     private void showWalletScreen() {
         root = page();
 
-        TextView title = title("Bitcoin Wallet");
+        TextView title = title(s(R.string.app_name));
         root.addView(title);
-        root.addView(text("Simple bitcoinj wallet", 14, Color.LTGRAY));
+        root.addView(text(s(R.string.simple_wallet), 14, textSecondaryColor()));
 
-        root.addView(section("NETWORK"));
+        root.addView(section(s(R.string.network)));
         Spinner network = spinner(NETWORKS, selectedNetwork.name());
         root.addView(network);
         network.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
@@ -116,32 +116,32 @@ public class MainActivity extends Activity {
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent) { }
         });
 
-        root.addView(section("WALLET"));
-        balance = bigText("Balance  —");
+        root.addView(section(s(R.string.wallet)));
+        balance = bigText(s(R.string.balance_unknown));
         root.addView(balance);
-        address = text("Receive address\n—", 14, Color.LTGRAY);
+        address = text(s(R.string.receive_address_unknown), 14, textSecondaryColor());
         address.setTextIsSelectable(true);
         root.addView(address);
 
-        status = text("Starting…", 14, Color.LTGRAY);
+        status = text(s(R.string.starting), 14, textSecondaryColor());
         root.addView(status);
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);
         progress.setProgress(0);
         root.addView(progress, new LinearLayout.LayoutParams(-1, 12));
 
-        root.addView(section("ACTIONS"));
-        root.addView(actionButton("Receive", "Show address and QR", v -> showReceive()));
-        root.addView(actionButton("Send BTC", "Send bitcoin from this wallet", v -> showSend()));
-        root.addView(actionButton("Transactions", "View wallet transaction data", v -> showTransactions()));
-        root.addView(actionButton("Wallet settings", "Seed, password and restore", v -> showSettings()));
-        root.addView(actionButton("Wallet Tool", "Advanced bitcoinj wallet operations", v -> showToolHome()));
+        root.addView(section(s(R.string.actions)));
+        root.addView(actionButton(s(R.string.receive), s(R.string.show_address_qr), v -> showReceive()));
+        root.addView(actionButton(s(R.string.send_btc), s(R.string.send_from_wallet), v -> showSend()));
+        root.addView(actionButton(s(R.string.transactions), s(R.string.view_transactions), v -> showTransactions()));
+        root.addView(actionButton(s(R.string.wallet_settings), s(R.string.seed_password_restore), v -> showSettings()));
+        root.addView(actionButton(s(R.string.wallet_tool), s(R.string.advanced_operations), v -> showToolHome()));
 
-        root.addView(section("WALLET CONTROL"));
-        root.addView(actionButton("Sync now", "Synchronise this wallet", v -> restartWallet()));
-        root.addView(actionButton("Stop wallet", "Stop bitcoinj wallet service", v -> {
+        root.addView(section(s(R.string.wallet_control)));
+        root.addView(actionButton(s(R.string.sync_now), s(R.string.synchronise_wallet), v -> restartWallet()));
+        root.addView(actionButton(s(R.string.stop_wallet), s(R.string.stop_wallet_desc), v -> {
             manager.stop();
-            status.setText("Wallet stopped");
+            status.setText(s(R.string.wallet_stopped));
             progress.setProgress(0);
         }));
 
@@ -151,67 +151,67 @@ public class MainActivity extends Activity {
 
     private void restartWallet() {
         manager.stop();
-        status.setText("Starting…");
+        status.setText(s(R.string.starting));
         progress.setProgress(0);
         manager.start(selectedNetwork, walletListener());
     }
 
     private void refreshWallet(Wallet wallet) {
         if (balance == null || address == null) return;
-        balance.setText("Balance  " + wallet.getBalance().toPlainString() + " BTC");
-        address.setText("Receive address\n" + wallet.currentReceiveAddress());
+        balance.setText(getString(R.string.balance_value, wallet.getBalance().toPlainString()));
+        address.setText(getString(R.string.receive_address_value, wallet.currentReceiveAddress()));
     }
 
     private void showReceive() {
         Wallet w = manager.wallet();
-        if (w == null) { toast("Wallet is not ready"); return; }
+        if (w == null) { toast(s(R.string.wallet_not_ready)); return; }
         String addr = w.currentReceiveAddress().toString();
         LinearLayout box = page();
-        box.addView(title("Receive BTC"));
-        box.addView(text("Network  " + selectedNetwork.name(), 14, Color.LTGRAY));
+        box.addView(title(s(R.string.receive_btc)));
+        box.addView(text(getString(R.string.network_value, selectedNetwork.name()), 14, textSecondaryColor()));
         ImageView image = new ImageView(this);
         image.setImageBitmap(qr(addr, 620));
         image.setAdjustViewBounds(true);
         image.setPadding(24, 24, 24, 24);
         box.addView(image, new LinearLayout.LayoutParams(-1, 620));
-        TextView a = text(addr, 16, Color.WHITE);
+        TextView a = text(addr, 16, textPrimaryColor());
         a.setTextIsSelectable(true);
         a.setGravity(Gravity.CENTER);
         box.addView(a);
-        box.addView(actionButton("Copy address", "Copy to clipboard", v -> copy(addr)));
+        box.addView(actionButton(s(R.string.copy_address), s(R.string.copy_to_clipboard), v -> copy(addr)));
         box.addView(backButton());
         setContentView(paddedScroll(box));
     }
 
     private void showSend() {
         Wallet w = manager.wallet();
-        if (w == null) { toast("Wallet is not ready"); return; }
+        if (w == null) { toast(s(R.string.wallet_not_ready)); return; }
         LinearLayout box = page();
-        box.addView(title("Send BTC"));
-        box.addView(text("Available  " + w.getBalance().toPlainString() + " BTC", 15, Color.LTGRAY));
-        EditText to = field("Recipient address");
-        EditText amount = field("Amount BTC");
-        EditText password = field("Wallet password (if encrypted)");
+        box.addView(title(s(R.string.send_btc)));
+        box.addView(text(getString(R.string.available_btc, w.getBalance().toPlainString()), 15, textSecondaryColor()));
+        EditText to = field(s(R.string.recipient_address));
+        EditText amount = field(s(R.string.amount_btc));
+        EditText password = field(s(R.string.wallet_password_if_encrypted));
         password.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        CheckBox all = check("Send entire available balance");
-        box.addView(label("RECIPIENT")); box.addView(to);
-        box.addView(label("AMOUNT")); box.addView(amount); box.addView(all);
-        box.addView(label("SECURITY")); box.addView(password);
-        box.addView(actionButton("Review and send", "Create and broadcast transaction", v -> {
+        CheckBox all = check(s(R.string.send_entire_balance));
+        box.addView(label(s(R.string.recipient))); box.addView(to);
+        box.addView(label(s(R.string.amount))); box.addView(amount); box.addView(all);
+        box.addView(label(s(R.string.security))); box.addView(password);
+        box.addView(actionButton(s(R.string.review_and_send), s(R.string.create_broadcast_transaction), v -> {
             try {
                 String dest = to.getText().toString().trim();
                 org.bitcoinj.base.Address target = w.parseAddress(dest);
                 String pass = password.getText().toString();
-                if (!pass.isEmpty() && !w.checkPassword(pass)) throw new IllegalArgumentException("Incorrect wallet password");
+                if (!pass.isEmpty() && !w.checkPassword(pass)) throw new IllegalArgumentException(s(R.string.incorrect_wallet_password));
                 SendRequest req;
                 if (all.isChecked()) req = SendRequest.emptyWallet(target);
                 else req = SendRequest.to(target, Coin.parseCoin(amount.getText().toString().trim()));
                 if (!pass.isEmpty()) req.aesKey = w.getKeyCrypter().deriveKey(pass);
                 req.allowUnconfirmed();
-                new AlertDialog.Builder(this).setTitle("Confirm transaction")
-                        .setMessage("To\n" + dest + "\n\nAmount\n" + (all.isChecked() ? "ALL" : amount.getText().toString().trim()) + " BTC")
-                        .setNegativeButton("Cancel", null)
-                        .setPositiveButton("SEND", (d, which) -> broadcast(w, req)).show();
+                new AlertDialog.Builder(this).setTitle(s(R.string.confirm_transaction))
+                        .setMessage(getString(R.string.confirm_send_message, dest, all.isChecked() ? s(R.string.all) : amount.getText().toString().trim()))
+                        .setNegativeButton(s(R.string.cancel), null)
+                        .setPositiveButton(s(R.string.send_upper), (d, which) -> broadcast(w, req)).show();
             } catch (Throwable t) { toast(message(t)); }
         }));
         box.addView(backButton());
@@ -222,7 +222,7 @@ public class MainActivity extends Activity {
         CompletableFuture.supplyAsync(() -> {
             try { return w.sendCoins(req); } catch (Exception e) { throw new RuntimeException(e); }
         }).thenAccept(result -> runOnUiThread(() -> {
-            toastLong("Transaction\n" + result.tx.getTxId());
+            toastLong(getString(R.string.transaction_id, result.tx.getTxId()));
             showWalletScreen();
         })).exceptionally(t -> { runOnUiThread(() -> toastLong(message(t))); return null; });
     }
@@ -230,12 +230,12 @@ public class MainActivity extends Activity {
     private void showTransactions() {
         Wallet w = manager.wallet();
         LinearLayout box = page();
-        box.addView(title("Transactions"));
+        box.addView(title(s(R.string.transactions)));
         if (w == null || w.getTransactions(false).isEmpty()) {
-            box.addView(text("No transactions in this wallet.", 15, Color.LTGRAY));
+            box.addView(text(s(R.string.no_transactions), 15, textSecondaryColor()));
         } else {
             for (org.bitcoinj.core.Transaction tx : w.getTransactions(false)) {
-                box.addView(text(tx.getTxId().toString() + "\n" + tx.getValueSentFromMe(w).toPlainString() + " BTC", 14, Color.WHITE));
+                box.addView(text(tx.getTxId().toString() + "\n" + tx.getValueSentFromMe(w).toPlainString() + " BTC", 14, textPrimaryColor()));
             }
         }
         box.addView(backButton());
@@ -244,13 +244,13 @@ public class MainActivity extends Activity {
 
     private void showSettings() {
         Wallet w = manager.wallet();
-        if (w == null) { toast("Wallet is not ready"); return; }
+        if (w == null) { toast(s(R.string.wallet_not_ready)); return; }
         LinearLayout box = page();
-        box.addView(title("Wallet settings"));
-        box.addView(text("Network  " + selectedNetwork.name(), 14, Color.LTGRAY));
-        box.addView(actionButton("Recovery seed", "Show mnemonic words", v -> showSeed(w)));
-        box.addView(actionButton(w.isEncrypted() ? "Decrypt wallet" : "Set password", "Change wallet encryption", v -> toggleEncryption(w)));
-        box.addView(actionButton("Restore wallet", "Restore from a 12-word mnemonic", v -> showRestore()));
+        box.addView(title(s(R.string.wallet_settings)));
+        box.addView(text(getString(R.string.network_value, selectedNetwork.name()), 14, textSecondaryColor()));
+        box.addView(actionButton(s(R.string.recovery_seed), s(R.string.show_mnemonic_words), v -> showSeed(w)));
+        box.addView(actionButton(w.isEncrypted() ? s(R.string.decrypt_wallet) : s(R.string.set_password), s(R.string.change_wallet_encryption), v -> toggleEncryption(w)));
+        box.addView(actionButton(s(R.string.restore_wallet), s(R.string.restore_from_mnemonic), v -> showRestore()));
         box.addView(backButton());
         setContentView(paddedScroll(box));
     }
@@ -259,9 +259,9 @@ public class MainActivity extends Activity {
         try {
             DeterministicSeed seed = w.getKeyChainSeed();
             if (seed.isEncrypted()) {
-                askPassword("Wallet password", pass -> {
+                askPassword(s(R.string.wallet_password), pass -> {
                     try {
-                        if (!w.checkPassword(pass)) throw new IllegalArgumentException("Wrong password");
+                        if (!w.checkPassword(pass)) throw new IllegalArgumentException(s(R.string.wrong_password));
                         AesKey key = w.getKeyCrypter().deriveKey(pass);
                         showSeedText(seed.decrypt(w.getKeyCrypter(), "", key));
                     } catch (Throwable t) { toast(message(t)); }
@@ -272,28 +272,28 @@ public class MainActivity extends Activity {
 
     private void showSeedText(DeterministicSeed seed) {
         String words = seed.getMnemonicCode() == null ? seed.toString() : String.join(" ", seed.getMnemonicCode());
-        new AlertDialog.Builder(this).setTitle("Recovery seed")
+        new AlertDialog.Builder(this).setTitle(s(R.string.recovery_seed))
                 .setMessage(words)
-                .setPositiveButton("Close", null)
-                .setNegativeButton("Copy", (d, w) -> copy(words)).show();
+                .setPositiveButton(s(R.string.close), null)
+                .setNegativeButton(s(R.string.copy), (d, w) -> copy(words)).show();
     }
 
     private void toggleEncryption(Wallet w) {
         if (w.isEncrypted()) {
-            askPassword("Decrypt wallet", pass -> {
+            askPassword(s(R.string.decrypt_wallet), pass -> {
                 try {
-                    if (!w.checkPassword(pass)) throw new IllegalArgumentException("Wrong password");
+                    if (!w.checkPassword(pass)) throw new IllegalArgumentException(s(R.string.wrong_password));
                     w.decrypt(w.getKeyCrypter().deriveKey(pass));
-                    toast("Wallet decrypted"); showSettings();
+                    toast(s(R.string.wallet_decrypted)); showSettings();
                 } catch (Throwable t) { toast(message(t)); }
             });
         } else {
-            askTwoPasswords("Set wallet password", (a, b) -> {
-                if (!a.equals(b) || a.length() < 4) { toast("Passwords must match and be at least 4 characters"); return; }
+            askTwoPasswords(s(R.string.set_wallet_password), (a, b) -> {
+                if (!a.equals(b) || a.length() < 4) { toast(s(R.string.password_requirements)); return; }
                 try {
                     KeyCrypterScrypt scrypt = new KeyCrypterScrypt();
                     w.encrypt(scrypt, scrypt.deriveKey(a));
-                    toast("Wallet encrypted"); showSettings();
+                    toast(s(R.string.wallet_encrypted)); showSettings();
                 } catch (Throwable t) { toast(message(t)); }
             });
         }
@@ -301,14 +301,14 @@ public class MainActivity extends Activity {
 
     private void showRestore() {
         LinearLayout box = page();
-        box.addView(title("Restore wallet"));
-        EditText words = field("12-word mnemonic");
-        EditText date = field("Birthday YYYY-MM-DD (UTC)");
-        box.addView(label("RECOVERY WORDS")); box.addView(words);
-        box.addView(label("BIRTHDAY")); box.addView(date);
-        box.addView(actionButton("Restore and resync", "Replace the current wallet", v -> {
+        box.addView(title(s(R.string.restore_wallet)));
+        EditText words = field(s(R.string.mnemonic_12_words));
+        EditText date = field(s(R.string.birthday_utc));
+        box.addView(label(s(R.string.recovery_words))); box.addView(words);
+        box.addView(label(s(R.string.birthday))); box.addView(date);
+        box.addView(actionButton(s(R.string.restore_and_resync), s(R.string.replace_current_wallet), v -> {
             try {
-                if (wBalance() > 0) throw new IllegalStateException("Wallet must be empty before restore");
+                if (wBalance() > 0) throw new IllegalStateException(s(R.string.wallet_must_be_empty));
                 List<String> mnemonic = Arrays.asList(words.getText().toString().trim().split("\\s+"));
                 org.bitcoinj.crypto.MnemonicCode.INSTANCE.check(mnemonic);
                 LocalDate d = LocalDate.parse(date.getText().toString().trim());
@@ -325,27 +325,27 @@ public class MainActivity extends Activity {
 
     private void showToolHome() {
         LinearLayout box = page();
-        box.addView(title("Wallet Tool"));
-        box.addView(text("Advanced bitcoinj operations for this wallet.", 14, Color.LTGRAY));
-        box.addView(text("Network  " + selectedNetwork.name(), 14, Color.LTGRAY));
-        box.addView(section("COMMON"));
-        toolAction(box, "Inspect wallet", "Show wallet details", "dump");
-        toolAction(box, "Sync wallet", "Download new transactions", "sync");
-        toolAction(box, "Receive address", "Get the current receive address", "current-receive-addr");
-        toolAction(box, "Send BTC", "Create and broadcast a transaction", "send");
-        box.addView(section("WALLET"));
-        toolAction(box, "Create wallet", "Create a new wallet file", "create");
-        toolAction(box, "Encrypt wallet", "Encrypt this wallet", "encrypt");
-        toolAction(box, "Decrypt wallet", "Decrypt this wallet", "decrypt");
-        toolAction(box, "Add address", "Add a watching address", "add-addr");
-        toolAction(box, "Add key", "Add a private/public key", "add-key");
-        toolAction(box, "Delete key", "Remove a key or address", "delete-key");
-        toolAction(box, "Reset wallet", "Delete transactions and replay chain", "reset");
-        box.addView(section("ADVANCED"));
-        toolAction(box, "Raw dump", "Print raw wallet protobuf", "raw-dump");
-        toolAction(box, "Upgrade wallet", "Upgrade deterministic wallet", "upgrade");
-        toolAction(box, "Rotate keys", "Set key rotation time", "rotate");
-        toolAction(box, "Set creation time", "Repair wallet creation time", "set-creation-time");
+        box.addView(title(s(R.string.wallet_tool)));
+        box.addView(text(s(R.string.advanced_operations_this_wallet), 14, textSecondaryColor()));
+        box.addView(text(getString(R.string.network_value, selectedNetwork.name()), 14, textSecondaryColor()));
+        box.addView(section(s(R.string.common)));
+        toolAction(box, s(R.string.inspect_wallet), s(R.string.show_wallet_details), "dump");
+        toolAction(box, s(R.string.sync_wallet), s(R.string.download_transactions), "sync");
+        toolAction(box, s(R.string.receive_address), s(R.string.get_receive_address), "current-receive-addr");
+        toolAction(box, s(R.string.send_btc), s(R.string.create_broadcast_transaction), "send");
+        box.addView(section(s(R.string.wallet)));
+        toolAction(box, s(R.string.create_wallet), s(R.string.create_wallet_file), "create");
+        toolAction(box, s(R.string.encrypt_wallet), s(R.string.encrypt_this_wallet), "encrypt");
+        toolAction(box, s(R.string.decrypt_wallet), s(R.string.decrypt_this_wallet), "decrypt");
+        toolAction(box, s(R.string.add_address), s(R.string.add_watching_address), "add-addr");
+        toolAction(box, s(R.string.add_key), s(R.string.add_private_public_key), "add-key");
+        toolAction(box, s(R.string.delete_key), s(R.string.remove_key_address), "delete-key");
+        toolAction(box, s(R.string.reset_wallet), s(R.string.reset_wallet_desc), "reset");
+        box.addView(section(s(R.string.advanced)));
+        toolAction(box, s(R.string.raw_dump), s(R.string.raw_dump_desc), "raw-dump");
+        toolAction(box, s(R.string.upgrade_wallet), s(R.string.upgrade_wallet_desc), "upgrade");
+        toolAction(box, s(R.string.rotate_keys), s(R.string.rotate_keys_desc), "rotate");
+        toolAction(box, s(R.string.set_creation_time), s(R.string.set_creation_time_desc), "set-creation-time");
         box.addView(backButton());
         setContentView(paddedScroll(box));
     }
@@ -357,76 +357,83 @@ public class MainActivity extends Activity {
     private void showToolAction(String action) {
         LinearLayout box = page();
         box.addView(title(toolTitle(action)));
-        box.addView(text("Network  " + selectedNetwork.name(), 14, Color.LTGRAY));
+        box.addView(text(getString(R.string.network_value, selectedNetwork.name()), 14, textSecondaryColor()));
         List<EditText> fields = new ArrayList<>();
         CheckBox force = null, allow = null, dumpPriv = null, dumpLook = null, offline = null;
 
         switch (action) {
             case "dump":
-                fields.add(addField(box, "Password (if encrypted)", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD));
-                dumpPriv = check("Show private keys and seed"); box.addView(dumpPriv);
-                dumpLook = check("Show lookahead keys"); box.addView(dumpLook);
+                fields.add(addField(box, s(R.string.password_if_encrypted), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD));
+                dumpPriv = check(s(R.string.show_private_keys_seed)); box.addView(dumpPriv);
+                dumpLook = check(s(R.string.show_lookahead_keys)); box.addView(dumpLook);
                 break;
             case "create":
-                fields.add(addField(box, "Mnemonic seed (optional)", InputType.TYPE_CLASS_TEXT));
-                fields.add(addField(box, "Watch xpub (optional)", InputType.TYPE_CLASS_TEXT));
-                fields.add(addField(box, "Birthday YYYY-MM-DD", InputType.TYPE_CLASS_TEXT));
-                fields.add(addField(box, "Script type: P2PKH or P2WPKH", InputType.TYPE_CLASS_TEXT));
-                force = check("Force if wallet already exists"); box.addView(force);
+                fields.add(addField(box, s(R.string.mnemonic_seed_optional), InputType.TYPE_CLASS_TEXT));
+                fields.add(addField(box, s(R.string.watch_xpub_optional), InputType.TYPE_CLASS_TEXT));
+                fields.add(addField(box, s(R.string.birthday_date), InputType.TYPE_CLASS_TEXT));
+                fields.add(addField(box, s(R.string.script_type), InputType.TYPE_CLASS_TEXT));
+                force = check(s(R.string.force_existing_wallet)); box.addView(force);
                 break;
             case "add-key":
-                fields.add(addField(box, "Private key (WIF/hex/base58)", InputType.TYPE_CLASS_TEXT));
-                fields.add(addField(box, "Public key (optional)", InputType.TYPE_CLASS_TEXT));
-                fields.add(addField(box, "Creation date YYYY-MM-DD (optional)", InputType.TYPE_CLASS_TEXT));
+                fields.add(addField(box, s(R.string.private_key), InputType.TYPE_CLASS_TEXT));
+                fields.add(addField(box, s(R.string.public_key_optional), InputType.TYPE_CLASS_TEXT));
+                fields.add(addField(box, s(R.string.creation_date_optional), InputType.TYPE_CLASS_TEXT));
                 break;
             case "add-addr":
-                fields.add(addField(box, "Bitcoin address", InputType.TYPE_CLASS_TEXT));
+                fields.add(addField(box, s(R.string.bitcoin_address), InputType.TYPE_CLASS_TEXT));
                 break;
             case "delete-key":
-                fields.add(addField(box, "Public key or address", InputType.TYPE_CLASS_TEXT));
+                fields.add(addField(box, s(R.string.public_key_or_address), InputType.TYPE_CLASS_TEXT));
                 break;
             case "encrypt":
             case "decrypt":
-                fields.add(addField(box, "Wallet password", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD));
+                fields.add(addField(box, s(R.string.wallet_password), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD));
                 break;
             case "send":
-                fields.add(addField(box, "Recipient address", InputType.TYPE_CLASS_TEXT));
-                fields.add(addField(box, "Amount BTC (or ALL)", InputType.TYPE_CLASS_TEXT));
-                fields.add(addField(box, "Fee sat/vByte (optional)", InputType.TYPE_CLASS_TEXT));
-                fields.add(addField(box, "Wallet password", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD));
-                allow = check("Allow unconfirmed outputs"); box.addView(allow);
-                offline = check("Offline: create transaction only"); box.addView(offline);
+                fields.add(addField(box, s(R.string.recipient_address), InputType.TYPE_CLASS_TEXT));
+                fields.add(addField(box, s(R.string.amount_btc_or_all), InputType.TYPE_CLASS_TEXT));
+                fields.add(addField(box, s(R.string.fee_sat_vbyte_optional), InputType.TYPE_CLASS_TEXT));
+                fields.add(addField(box, s(R.string.wallet_password), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD));
+                allow = check(s(R.string.allow_unconfirmed_outputs)); box.addView(allow);
+                offline = check(s(R.string.offline_transaction_only)); box.addView(offline);
                 break;
             case "sync":
-                force = check("Force reset chain before sync"); box.addView(force);
+                force = check(s(R.string.force_reset_chain)); box.addView(force);
                 break;
             case "rotate":
-                fields.add(addField(box, "Rotation date YYYY-MM-DD", InputType.TYPE_CLASS_TEXT));
+                fields.add(addField(box, s(R.string.rotation_date), InputType.TYPE_CLASS_TEXT));
                 break;
             case "set-creation-time":
-                fields.add(addField(box, "Creation date YYYY-MM-DD (leave empty to clear)", InputType.TYPE_CLASS_TEXT));
+                fields.add(addField(box, s(R.string.creation_date_clear), InputType.TYPE_CLASS_TEXT));
                 break;
             case "upgrade":
-                fields.add(addField(box, "Script type: P2PKH or P2WPKH", InputType.TYPE_CLASS_TEXT));
+                fields.add(addField(box, s(R.string.script_type), InputType.TYPE_CLASS_TEXT));
                 break;
             case "reset":
-                force = check("Force reset"); box.addView(force);
+                force = check(s(R.string.force_reset)); box.addView(force);
                 break;
             default:
                 break;
         }
 
-        TextView result = text("", 13, Color.LTGRAY); result.setTextIsSelectable(true);
-        Button run = actionButton("Run", "Execute this wallet-tool action", v -> {
+        TextView result = text("", 13, textSecondaryColor()); result.setTextIsSelectable(true);
+        final CheckBox forceRef = force;
+        final CheckBox allowRef = allow;
+        final CheckBox offlineRef = offline;
+        final CheckBox dumpPrivRef = dumpPriv;
+        final CheckBox dumpLookRef = dumpLook;
+        final List<EditText> fieldsRef = fields;
+        final Button run = actionButton(s(R.string.run), s(R.string.execute_tool_action), null);
+        run.setOnClickListener(v -> {
             List<String> args = new ArrayList<>(); args.add(action); args.add("--net=" + selectedNetwork.name());
-            buildToolArgs(action, fields, force, allow, offline, dumpPriv, dumpLook, args);
-            run.setEnabled(false); result.setText("Running…");
+            buildToolArgs(action, fieldsRef, forceRef, allowRef, offlineRef, dumpPrivRef, dumpLookRef, args);
+            run.setEnabled(false); result.setText(s(R.string.running));
             boolean restart = manager.wallet() != null && manager.network() == selectedNetwork;
             if (restart) manager.stop();
             toolRunner.run(args, selectedNetwork, new ToolRunner.Callback() {
-                @Override public void onStarted() { runOnUiThread(() -> result.setText("Running…\n" + manager.walletFile(selectedNetwork).getName())); }
-                @Override public void onFinished(int code, String output) { runOnUiThread(() -> { run.setEnabled(true); result.setText("Exit code: " + code + "\n\n" + (output.isEmpty() ? "(no output)" : output)); if (restart) manager.start(selectedNetwork, walletListener()); }); }
-                @Override public void onFailed(Throwable error) { runOnUiThread(() -> { run.setEnabled(true); result.setText("Failed\n" + message(error)); if (restart) manager.start(selectedNetwork, walletListener()); }); }
+                @Override public void onStarted() { runOnUiThread(() -> result.setText(getString(R.string.running_wallet_file, manager.walletFile(selectedNetwork).getName()))); }
+                @Override public void onFinished(int code, String output) { runOnUiThread(() -> { run.setEnabled(true); result.setText(getString(R.string.exit_code_result, code, output.isEmpty() ? s(R.string.no_output) : output)); if (restart) manager.start(selectedNetwork, walletListener()); }); }
+                @Override public void onFailed(Throwable error) { runOnUiThread(() -> { run.setEnabled(true); result.setText(getString(R.string.failed_result, message(error))); if (restart) manager.start(selectedNetwork, walletListener()); }); }
             });
         });
         box.addView(run); box.addView(result); box.addView(backButton());
@@ -453,28 +460,33 @@ public class MainActivity extends Activity {
     private void add(List<String> args, String key, List<EditText> f, int i) { String v = value(f, i); if (!v.isEmpty()) args.add(key + "=" + v); }
 
     private String toolTitle(String a) {
-        switch (a) { case "dump": return "Inspect wallet"; case "sync": return "Sync wallet"; case "current-receive-addr": return "Receive address"; case "send": return "Send BTC"; case "add-addr": return "Add address"; case "add-key": return "Add key"; case "delete-key": return "Delete key"; case "raw-dump": return "Raw dump"; case "set-creation-time": return "Set creation time"; default: return Character.toUpperCase(a.charAt(0)) + a.substring(1); }
+        switch (a) { case "dump": return s(R.string.inspect_wallet); case "sync": return s(R.string.sync_wallet); case "current-receive-addr": return s(R.string.receive_address); case "send": return s(R.string.send_btc); case "add-addr": return s(R.string.add_address); case "add-key": return s(R.string.add_key); case "delete-key": return s(R.string.delete_key); case "raw-dump": return s(R.string.raw_dump); case "set-creation-time": return s(R.string.set_creation_time); default: return Character.toUpperCase(a.charAt(0)) + a.substring(1); }
     }
 
-    private void askPassword(String title, PasswordCallback cb) { EditText input = field("Password"); input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD); new AlertDialog.Builder(this).setTitle(title).setView(input).setPositiveButton("OK", (d,w) -> cb.accept(input.getText().toString())).setNegativeButton("Cancel", null).show(); }
-    private void askTwoPasswords(String title, TwoPasswordCallback cb) { LinearLayout box = page(); EditText a = field("Password"); EditText b = field("Repeat password"); a.setInputType(129); b.setInputType(129); box.addView(a); box.addView(b); new AlertDialog.Builder(this).setTitle(title).setView(box).setPositiveButton("OK", (d,w) -> cb.accept(a.getText().toString(), b.getText().toString())).setNegativeButton("Cancel", null).show(); }
+    private void askPassword(String title, PasswordCallback cb) { EditText input = field(s(R.string.password)); input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD); new AlertDialog.Builder(this).setTitle(title).setView(input).setPositiveButton(s(R.string.ok), (d,w) -> cb.accept(input.getText().toString())).setNegativeButton(s(R.string.cancel), null).show(); }
+    private void askTwoPasswords(String title, TwoPasswordCallback cb) { LinearLayout box = page(); EditText a = field(s(R.string.password)); EditText b = field(s(R.string.repeat_password)); a.setInputType(129); b.setInputType(129); box.addView(a); box.addView(b); new AlertDialog.Builder(this).setTitle(title).setView(box).setPositiveButton(s(R.string.ok), (d,w) -> cb.accept(a.getText().toString(), b.getText().toString())).setNegativeButton(s(R.string.cancel), null).show(); }
     private interface PasswordCallback { void accept(String password); }
     private interface TwoPasswordCallback { void accept(String a, String b); }
 
-    private LinearLayout page() { LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(24, 20, 24, 28); l.setBackgroundColor(Color.rgb(16,16,16)); return l; }
-    private ScrollView paddedScroll(View child) { ScrollView s = new ScrollView(this); s.setFillViewport(true); s.setBackgroundColor(Color.rgb(16,16,16)); s.addView(child); return s; }
-    private TextView title(String s) { return text(s, 26, Color.WHITE); }
-    private TextView bigText(String s) { TextView t = text(s, 23, Color.WHITE); t.setPadding(0, 8, 0, 16); return t; }
-    private TextView section(String s) { TextView t = text(s, 12, Color.rgb(247,147,26)); t.setPadding(0, 22, 0, 7); return t; }
-    private TextView label(String s) { TextView t = text(s, 11, Color.rgb(170,170,170)); t.setPadding(0, 12, 0, 2); return t; }
+    private LinearLayout page() { LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(24, 20, 24, 28); return l; }
+    private ScrollView paddedScroll(View child) { ScrollView s = new ScrollView(this); s.setFillViewport(true); s.addView(child); return s; }
+    private TextView title(String value) { return text(value, 26, textPrimaryColor()); }
+    private TextView bigText(String value) { TextView t = text(value, 23, textPrimaryColor()); t.setPadding(0, 8, 0, 16); return t; }
+    private TextView section(String value) { TextView t = text(value, 12, accentColor()); t.setPadding(0, 22, 0, 7); return t; }
+    private TextView label(String value) { TextView t = text(value, 11, textSecondaryColor()); t.setPadding(0, 12, 0, 2); return t; }
     private TextView text(String value, float size, int color) { TextView t = new TextView(this); t.setText(value); t.setTextSize(size); t.setTextColor(color); t.setPadding(0, 7, 0, 7); return t; }
-    private Button actionButton(String name, String desc, View.OnClickListener listener) { Button b = new Button(this); b.setText(name + "\n" + desc); b.setTextSize(15); b.setGravity(Gravity.START | Gravity.CENTER_VERTICAL); b.setAllCaps(false); b.setPadding(18, 8, 18, 8); b.setOnClickListener(listener); b.setMinHeight(64); return b; }
-    private Button backButton() { return actionButton("Back", "Return to wallet", v -> showWalletScreen()); }
+    private Button actionButton(String name, String desc, View.OnClickListener listener) { Button b = new Button(this); b.setText(desc.isEmpty() ? name : name + "\n" + desc); b.setTextSize(15); b.setGravity(Gravity.START | Gravity.CENTER_VERTICAL); b.setAllCaps(false); b.setOnClickListener(listener); b.setMinHeight(64); return b; }
+    private Button backButton() { return actionButton(s(R.string.back), s(R.string.return_to_wallet), v -> showWalletScreen()); }
     private Button button(String s) { return actionButton(s, "", null); }
     private Spinner spinner(String[] values, String selected) { Spinner s = new Spinner(this); s.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, values)); s.setSelection(Arrays.asList(values).indexOf(selected)); return s; }
-    private EditText field(String hint) { EditText e = new EditText(this); e.setHint(hint); e.setHintTextColor(Color.GRAY); e.setTextColor(Color.WHITE); e.setTextSize(16); e.setSingleLine(true); e.setPadding(0, 10, 0, 10); return e; }
-    private CheckBox check(String label) { CheckBox c = new CheckBox(this); c.setText(label); c.setTextColor(Color.WHITE); c.setAllCaps(false); return c; }
-    private void copy(String value) { ClipboardManager cm = (ClipboardManager)getSystemService(CLIPBOARD_SERVICE); cm.setPrimaryClip(ClipData.newPlainText("bitcoin", value)); toast("Copied"); }
+    private EditText field(String hint) { EditText e = new EditText(this); e.setHint(hint); e.setTextSize(16); e.setSingleLine(true); e.setPadding(0, 10, 0, 10); return e; }
+    private CheckBox check(String label) { CheckBox c = new CheckBox(this); c.setText(label); c.setAllCaps(false); return c; }
+    private void copy(String value) { ClipboardManager cm = (ClipboardManager)getSystemService(CLIPBOARD_SERVICE); cm.setPrimaryClip(ClipData.newPlainText(s(R.string.bitcoin), value)); toast(s(R.string.copied)); }
+    private String s(int id) { return getString(id); }
+    private int resolveColor(int attr) { android.util.TypedValue value = new android.util.TypedValue(); getTheme().resolveAttribute(attr, value, true); return value.resourceId != 0 ? getColor(value.resourceId) : value.data; }
+    private int textPrimaryColor() { return resolveColor(android.R.attr.textColorPrimary); }
+    private int textSecondaryColor() { return resolveColor(android.R.attr.textColorSecondary); }
+    private int accentColor() { return resolveColor(android.R.attr.colorAccent); }
     private void toast(String s) { Toast.makeText(this, s, Toast.LENGTH_SHORT).show(); }
     private void toastLong(String s) { Toast.makeText(this, s, Toast.LENGTH_LONG).show(); }
     private Bitmap qr(String value, int size) { try { BitMatrix m = new MultiFormatWriter().encode(value, BarcodeFormat.QR_CODE, size, size); Bitmap b = Bitmap.createBitmap(size, size, Bitmap.Config.RGB_565); for (int x=0;x<size;x++) for(int y=0;y<size;y++) b.setPixel(x,y,m.get(x,y)?Color.BLACK:Color.WHITE); return b; } catch(Exception e){ throw new IllegalStateException(e); } }
